@@ -1,13 +1,23 @@
 // api/game.js - Vercel serverless function
-// Stores game state in Vercel KV (free tier)
+// Uses Firebase Realtime Database REST API (no SDK needed)
 
-import { kv } from "@vercel/kv";
-
-const GAME_KEY = "fifa2026_game";
+const FB_URL = "https://fifa2026-e8ef2-default-rtdb.firebaseio.com";
 
 async function getGame() {
-  const data = await kv.get(GAME_KEY);
+  const res = await fetch(`${FB_URL}/game.json`);
+  if (!res.ok) throw new Error("Firebase read failed");
+  const data = await res.json();
   return data || { players: [], predictions: {}, results: {} };
+}
+
+async function setGame(data) {
+  const res = await fetch(`${FB_URL}/game.json`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data),
+  });
+  if (!res.ok) throw new Error("Firebase write failed");
+  return true;
 }
 
 export default async function handler(req, res) {
@@ -30,7 +40,7 @@ export default async function handler(req, res) {
       const { name } = body;
       if (!name) return res.status(400).json({ error: "name required" });
       if (!game.players.includes(name)) game.players.push(name);
-      await kv.set(GAME_KEY, game);
+      await setGame(game);
       return res.json({ players: game.players });
     }
 
@@ -39,7 +49,7 @@ export default async function handler(req, res) {
       if (!name || !matchId) return res.status(400).json({ error: "missing fields" });
       if (!game.predictions[matchId]) game.predictions[matchId] = {};
       game.predictions[matchId][name] = { h, a };
-      await kv.set(GAME_KEY, game);
+      await setGame(game);
       return res.json({ ok: true });
     }
 
@@ -47,11 +57,12 @@ export default async function handler(req, res) {
       const { matchId, h, a } = body;
       if (!matchId) return res.status(400).json({ error: "missing matchId" });
       game.results[matchId] = { h, a };
-      await kv.set(GAME_KEY, game);
+      await setGame(game);
       return res.json({ ok: true });
     }
 
     return res.status(400).json({ error: "unknown action" });
+
   } catch (e) {
     console.error(e);
     return res.status(500).json({ error: e.message });
