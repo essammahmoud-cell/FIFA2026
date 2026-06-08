@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/api/game", "destination": "/api/game" },
+    { "source": "/api/join", "destination": "/api/game?action=join" },
+    { "source": "/api/predict", "destination": "/api/game?action=predict" },
+    { "source": "/api/result", "destination": "/api/game?action=result" }
+  ]
+}
